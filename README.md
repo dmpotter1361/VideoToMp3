@@ -14,10 +14,12 @@ and clean up duplicate songs by *listening* to them, not just comparing filename
 ### ⬇ Download
 
 **[Get the latest version](https://github.com/dmpotter1361/VideoToMp3/releases/latest)** —
-download `VideoToMp3-x.y.z-x64.zip` from the latest release, unzip it, and run
-`VideoToMp3.exe`. The .NET runtime is bundled, but two free helper tools are
-required — see [Requirements](#requirements). (It's a personal build and not
-code-signed, so Windows SmartScreen may warn — choose **More info → Run anyway**.)
+download `VideoToMp3-x.y.z-x64.msi` from the latest release and run it. It installs
+like any normal program (shows in **Add/Remove Programs**, and a newer version
+replaces the old one automatically). The first time you open it, it sets up its
+free helper tools for you — **no command line, nothing manual**. (It's a personal
+build and not code-signed, so Windows SmartScreen may warn — choose
+**More info → Run anyway**.)
 
 ## Features
 
@@ -42,20 +44,19 @@ code-signed, so Windows SmartScreen may warn — choose **More info → Run anyw
 
 ## Requirements
 
-- **Windows 10/11 (x64).** The .NET runtime is bundled.
-- **[yt-dlp](https://github.com/yt-dlp/yt-dlp)** and **[ffmpeg](https://ffmpeg.org/)** —
-  the downloader and audio converter.
-- **[Chromaprint](https://acoustid.org/chromaprint)** (`fpcalc`) — only for the
-  duplicate finder.
+- **Windows 10/11 (x64).** The .NET runtime is bundled in the installer.
 
-The easy way to get all three (ffmpeg comes bundled with yt-dlp):
+The app relies on three free helper tools — **[yt-dlp](https://github.com/yt-dlp/yt-dlp)**
+and **[ffmpeg](https://ffmpeg.org/)** (download + convert) and
+**[Chromaprint](https://acoustid.org/chromaprint)** (duplicate detection). You don't
+need to install these yourself: the first time the app runs without them, it offers a
+one-click setup that installs them via Windows' built-in `winget`. If you'd rather do
+it manually, the equivalent commands are:
 
 ```powershell
 winget install yt-dlp.yt-dlp
 winget install AcoustID.Chromaprint
 ```
-
-The app finds these automatically whether they're on your PATH or installed via winget.
 
 ## Privacy
 
@@ -66,14 +67,15 @@ settings and the download history live in `%APPDATA%\VideoToMp3\`.
 
 ## Build from source
 
-Prerequisites: [.NET 10 SDK](https://dotnet.microsoft.com/).
+Prerequisites: [.NET 10 SDK](https://dotnet.microsoft.com/) and
+WiX v5 (`dotnet tool install --global wix --version 5.0.2`).
 
 ```powershell
 # Run the app
 dotnet run --project VideoToMp3.csproj
 
-# Build a release zip (self-contained, single file)
-pwsh ./build.ps1 -Version 1.0.0
+# Build the MSI installer (publishes self-contained, then builds the MSI)
+pwsh ./build.ps1 -Version 1.1.0
 ```
 
 ## How it works
@@ -120,6 +122,9 @@ same way. To pick up where it left off on your own machine:
   the download archive (dedupe by ID), and optional login cookies live here.
 - **`DuplicateFinder.cs`** — audio-fingerprint duplicate detection and Recycle-Bin cleanup.
 - **`ToolLocator.cs`** — finds `yt-dlp.exe`, `ffmpeg.exe`, and `fpcalc.exe`.
+- **`BootstrapForm.cs`** — first-run one-click setup of the helper tools via winget.
+- **`StartupManager.cs`** — "start with Windows" toggle and desktop-shortcut creation.
+- **`installer/Package.wxs` + `build.ps1`** — the WiX MSI installer.
 - **`TrayAppContext.cs`** — the tray icon and menu; opens the windows.
 - **`ConverterForm.cs` / `DuplicateForm.cs` / `LoginForm.cs`** — the windows.
 - **`AppSettings.cs`** — JSON settings in `%APPDATA%\VideoToMp3\`.

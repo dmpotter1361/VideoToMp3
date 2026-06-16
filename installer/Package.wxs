@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Video to MP3 installer (WiX v4+ syntax).
+  - MajorUpgrade auto-removes any older version on install (no manual uninstall first).
+  - UpgradeCode must stay constant forever; bump Version each release to trigger upgrades.
+  - Version comes from build.ps1 (-d Version=...); the default below is just a fallback.
+  - Files harvests the entire self-contained publish folder.
+-->
+<?ifndef Version ?><?define Version = "1.1.0" ?><?endif?>
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+  <Package Name="Video to MP3"
+           Manufacturer="Michael Potter"
+           Version="$(var.Version)"
+           UpgradeCode="B7E5C2A1-9F34-4D8E-AB10-2C6F5E0D7A93"
+           Scope="perMachine"
+           Compressed="yes">
+
+    <!-- Replace any older install automatically; block downgrades with a friendly message. -->
+    <MajorUpgrade DowngradeErrorMessage="A newer version of Video to MP3 is already installed." />
+    <MediaTemplate EmbedCab="yes" />
+
+    <Icon Id="AppIcon" SourceFile="$(var.PublishDir)\appicon.ico" />
+    <Property Id="ARPPRODUCTICON" Value="AppIcon" />
+    <Property Id="ARPNOREPAIR" Value="1" />
+    <Property Id="ARPHELPLINK" Value="https://github.com/dmpotter1361/VideoToMp3" />
+
+    <StandardDirectory Id="ProgramFiles64Folder">
+      <Directory Id="INSTALLFOLDER" Name="Video to MP3" />
+    </StandardDirectory>
+    <StandardDirectory Id="ProgramMenuFolder" />
+
+    <Feature Id="Main" Title="Video to MP3" Level="1">
+      <ComponentGroupRef Id="AppFiles" />
+      <ComponentRef Id="AppShortcut" />
+    </Feature>
+
+    <!-- All published files (self-contained app + .NET runtime). -->
+    <ComponentGroup Id="AppFiles" Directory="INSTALLFOLDER">
+      <Files Include="$(var.PublishDir)\**" />
+    </ComponentGroup>
+
+    <!-- Start-Menu shortcut. -->
+    <Component Id="AppShortcut" Directory="ProgramMenuFolder" Guid="*">
+      <Shortcut Id="StartMenuShortcut"
+                Name="Video to MP3"
+                Description="Download video and convert to MP3"
+                Target="[INSTALLFOLDER]VideoToMp3.exe"
+                WorkingDirectory="INSTALLFOLDER"
+                Icon="AppIcon" />
+      <RegistryValue Root="HKCU" Key="Software\VideoToMp3" Name="installed" Type="integer" Value="1" KeyPath="yes" />
+    </Component>
+
+  </Package>
+</Wix>

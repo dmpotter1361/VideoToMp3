@@ -43,11 +43,12 @@ public sealed class TrayAppContext : ApplicationContext
 
         if (!ToolLocator.ToolsAvailable)
         {
-            _trayIcon.BalloonTipTitle = "Video to MP3";
-            _trayIcon.BalloonTipText = "yt-dlp / ffmpeg not found. Run: winget install yt-dlp.yt-dlp";
-            _trayIcon.ShowBalloonTip(8000);
+            // Guide the user through one-click setup instead of a dead-end warning.
+            using var bootstrap = new BootstrapForm();
+            bootstrap.ShowDialog();
         }
-        else
+
+        if (ToolLocator.ToolsAvailable)
         {
             _trayIcon.BalloonTipTitle = "Video to MP3 is running";
             _trayIcon.BalloonTipText = "Double-click the tray icon to convert a video.";
@@ -135,9 +136,21 @@ public sealed class TrayAppContext : ApplicationContext
         ExitThread();
     }
 
-    /// <summary>Draws a simple music-note tray icon so we don't ship an .ico file.</summary>
+    /// <summary>Uses the app's own icon for the tray; falls back to a drawn one.</summary>
     private static Icon BuildIcon()
     {
+        try
+        {
+            var exe = Environment.ProcessPath;
+            if (!string.IsNullOrEmpty(exe))
+            {
+                var appIcon = Icon.ExtractAssociatedIcon(exe);
+                if (appIcon is not null)
+                    return appIcon;
+            }
+        }
+        catch { /* fall back to the drawn icon below */ }
+
         using var bmp = new Bitmap(32, 32);
         using (var g = Graphics.FromImage(bmp))
         {

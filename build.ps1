@@ -1,29 +1,25 @@
 <#
     Reproducible build for Video to MP3.
-    Publishes a self-contained, single-file Windows build and zips it for release.
+    Publishes the self-contained app and builds the MSI installer.
     Paths are computed from this script's location, so it works from any clone.
 
-    Usage:  pwsh ./build.ps1 [-Version 1.0.0]
-    Requires: .NET 10 SDK
+    Usage:  pwsh ./build.ps1 [-Version 1.1.0]
+    Requires: .NET 10 SDK, and WiX v5  (dotnet tool install --global wix --version 5.0.2)
 #>
-param([string]$Version = "1.0.0")
+param([string]$Version = "1.1.0")
 
 $ErrorActionPreference = "Stop"
 $root = $PSScriptRoot
 $pub  = Join-Path $root "publish"
-$dist = Join-Path $root "dist"
 $proj = Join-Path $root "VideoToMp3.csproj"
-$zip  = Join-Path $dist "VideoToMp3-$Version-x64.zip"
+$wxs  = Join-Path $root "installer\Package.wxs"
+$msi  = Join-Path $root "installer\VideoToMp3-$Version-x64.msi"
 
-Write-Host "Publishing self-contained single-file build..." -ForegroundColor Cyan
+Write-Host "Publishing self-contained build..." -ForegroundColor Cyan
 if (Test-Path $pub) { Remove-Item $pub -Recurse -Force }
-dotnet publish $proj -c Release -r win-x64 --self-contained true `
-    -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true `
-    -p:Version=$Version -o $pub
+dotnet publish $proj -c Release -r win-x64 --self-contained true -p:Version=$Version -o $pub
 
-Write-Host "Packaging zip ($Version)..." -ForegroundColor Cyan
-New-Item -ItemType Directory -Force $dist | Out-Null
-if (Test-Path $zip) { Remove-Item $zip -Force }
-Compress-Archive -Path (Join-Path $pub "VideoToMp3.exe") -DestinationPath $zip
+Write-Host "Building MSI ($Version)..." -ForegroundColor Cyan
+wix build $wxs -d "PublishDir=$pub" -d "Version=$Version" -arch x64 -o $msi
 
-Write-Host "Done: $zip" -ForegroundColor Green
+Write-Host "Done: $msi" -ForegroundColor Green

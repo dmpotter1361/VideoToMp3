@@ -19,9 +19,22 @@ public static class ToolLocator
         if (_cache.TryGetValue(exe, out var cached))
             return cached;
 
-        string? found = FromPath(exe) ?? FromKnownLocations(exe);
+        string? found = FromAppFolder(exe) ?? FromPath(exe) ?? FromKnownLocations(exe);
         _cache[exe] = found;
         return found;
+    }
+
+    /// <summary>Forget cached results so a fresh install is picked up.</summary>
+    public static void ResetCache() => _cache.Clear();
+
+    private static string? FromAppFolder(string exe)
+    {
+        // The folder the running .exe lives in (works for single-file too).
+        var dir = Path.GetDirectoryName(Environment.ProcessPath);
+        if (string.IsNullOrEmpty(dir))
+            return null;
+        var candidate = Path.Combine(dir, exe);
+        return File.Exists(candidate) ? candidate : null;
     }
 
     private static string? FromPath(string exe)

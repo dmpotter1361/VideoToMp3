@@ -7,9 +7,15 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWindowsForms>true</UseWindowsForms>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>appicon.ico</ApplicationIcon>
     <AssemblyName>VideoToMp3</AssemblyName>
-    <Version>1.0.1</Version>
+    <Version>1.1.0</Version>
     <Product>Video to MP3</Product>
   </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Copied next to the published exe so the installer can use it. -->
+    <Content Include="appicon.ico" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
 
 </Project>

@@ -242,11 +242,10 @@ public sealed class ConverterForm : Form
 
         if (!ToolLocator.ToolsAvailable)
         {
-            MessageBox.Show(this,
-                "yt-dlp or ffmpeg could not be found. Please reinstall them with:\n\n" +
-                "winget install yt-dlp.yt-dlp",
-                "Missing tools", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            return;
+            using var bootstrap = new BootstrapForm();
+            bootstrap.ShowDialog(this);
+            if (!ToolLocator.ToolsAvailable)
+                return;
         }
 
         _settings.Mp3Bitrate = SelectedBitrate;

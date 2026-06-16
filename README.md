@@ -1,6 +1,9 @@
 # Video to MP3
 
-[![Latest release](https://img.shields.io/github/v/release/dmpotter1361/VideoToMp3?label=download&sort=semver&cacheSeconds=300)](https://github.com/dmpotter1361/VideoToMp3/releases/latest)
+<p align="center">
+  <img src="appicon-preview.png" width="96" alt="Video to MP3 icon"><br>
+  <a href="https://github.com/dmpotter1361/VideoToMp3/releases/latest"><img src="https://img.shields.io/github/v/release/dmpotter1361/VideoToMp3?label=download&sort=semver&cacheSeconds=300" alt="Latest release"></a>
+</p>
 
 A small Windows tray app that downloads a video from YouTube (or ~1,000 other
 sites) and turns it into an MP3 — keeping both the audio and the original video.
@@ -128,7 +131,6 @@ same way. To pick up where it left off on your own machine:
 - **`TrayAppContext.cs`** — the tray icon and menu; opens the windows.
 - **`ConverterForm.cs` / `DuplicateForm.cs` / `LoginForm.cs`** — the windows.
 - **`AppSettings.cs`** — JSON settings in `%APPDATA%\VideoToMp3\`.
-- **`build.ps1`** — produces the release zip.
 
 ## Acknowledgments
 

@@ -9,13 +9,14 @@ public sealed class ConverterForm : Form
     private readonly TextBox _urlBox = new();
     private readonly TextBox _folderBox = new();
     private readonly ComboBox _bitrateBox = new();
+    private readonly ComboBox _modeBox = new();
     private readonly CheckBox _playlistCheck = new();
     private readonly CheckBox _dedupeCheck = new();
     private readonly Label _loginStatus = new();
     private readonly Button _loginButton = new();
-    private readonly Button _convertButton = new();
     private readonly Button _changeFolderButton = new();
     private readonly Button _openFolderButton = new();
+    private readonly Button _convertButton = new();
     private readonly TextBox _logBox = new();
     private readonly Label _statusLabel = new();
 
@@ -26,141 +27,170 @@ public sealed class ConverterForm : Form
     {
         _settings = settings;
         BuildUi();
+        RefreshLoginStatus();
     }
 
     private void BuildUi()
     {
         Text = "Video to MP3";
-        Font = new Font("Segoe UI", 9f);
-        ClientSize = new Size(560, 440);
-        MinimumSize = new Size(480, 380);
+        Font = SystemFonts.MessageBoxFont ?? new Font("Segoe UI", 9f);
+        AutoScaleMode = AutoScaleMode.Font;
+        ClientSize = new Size(620, 500);
+        MinimumSize = new Size(520, 460);
         StartPosition = FormStartPosition.CenterScreen;
-        FormBorderStyle = FormBorderStyle.Sizable;
-        MaximizeBox = true;
 
-        var pad = 12;
-
-        var urlLabel = new Label
+        var root = new TableLayoutPanel
         {
-            Text = "Paste a video link (YouTube or other site):",
-            Location = new Point(pad, pad),
-            AutoSize = true,
+            Dock = DockStyle.Fill,
+            ColumnCount = 2,
+            Padding = new Padding(12),
+            AutoSize = false,
         };
+        root.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        root.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
 
-        _urlBox.Location = new Point(pad, urlLabel.Bottom + 4);
-        _urlBox.Width = ClientSize.Width - pad * 2;
-        _urlBox.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+        // --- URL ---
+        AddFullRow(root, MakeLabel("Paste a video link (YouTube or other site):"));
+        _urlBox.Dock = DockStyle.Fill;
+        _urlBox.Margin = new Padding(0, 2, 0, 8);
+        AddFullRow(root, _urlBox);
 
-        var folderLabel = new Label
-        {
-            Text = "Save to (MP3s and Videos go in subfolders here):",
-            Location = new Point(pad, _urlBox.Bottom + 12),
-            AutoSize = true,
-        };
-
-        _folderBox.Location = new Point(pad, folderLabel.Bottom + 4);
-        _folderBox.Width = ClientSize.Width - pad * 2 - 180;
+        // --- Save-to folder + buttons ---
+        AddFullRow(root, MakeLabel("Save to (MP3s and Videos go in subfolders here):"));
         _folderBox.ReadOnly = true;
+        _folderBox.Dock = DockStyle.Fill;
         _folderBox.Text = _settings.OutputFolder;
-        _folderBox.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
-
         _changeFolderButton.Text = "Change…";
-        _changeFolderButton.Width = 80;
-        _changeFolderButton.Location = new Point(_folderBox.Right + 6, _folderBox.Top - 1);
-        _changeFolderButton.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+        _changeFolderButton.AutoSize = true;
+        _changeFolderButton.Margin = new Padding(6, 0, 0, 0);
         _changeFolderButton.Click += (_, _) => ChangeFolder();
-
         _openFolderButton.Text = "Open";
-        _openFolderButton.Width = 80;
-        _openFolderButton.Location = new Point(_changeFolderButton.Right + 6, _folderBox.Top - 1);
-        _openFolderButton.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+        _openFolderButton.AutoSize = true;
+        _openFolderButton.Margin = new Padding(6, 0, 0, 0);
         _openFolderButton.Click += (_, _) => OpenFolder();
+        var folderRow = new TableLayoutPanel { ColumnCount = 3, Dock = DockStyle.Fill, AutoSize = true, Margin = new Padding(0, 2, 0, 8) };
+        folderRow.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        folderRow.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        folderRow.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        _folderBox.Margin = new Padding(0);
+        folderRow.Controls.Add(_folderBox, 0, 0);
+        folderRow.Controls.Add(_changeFolderButton, 1, 0);
+        folderRow.Controls.Add(_openFolderButton, 2, 0);
+        AddFullRow(root, folderRow);
 
-        var qualityLabel = new Label
-        {
-            Text = "MP3 quality:",
-            Location = new Point(pad, _folderBox.Bottom + 14),
-            AutoSize = true,
-        };
-
+        // --- Quality ---
         _bitrateBox.DropDownStyle = ComboBoxStyle.DropDownList;
         _bitrateBox.Items.AddRange(new object[] { "128 kbps", "192 kbps (recommended)", "320 kbps" });
-        _bitrateBox.Width = 180;
-        _bitrateBox.Location = new Point(qualityLabel.Right + 8, qualityLabel.Top - 3);
         _bitrateBox.SelectedIndex = _settings.Mp3Bitrate switch { 128 => 0, 320 => 2, _ => 1 };
+        _bitrateBox.Margin = new Padding(0, 2, 0, 4);
+        SizeComboToContent(_bitrateBox);
+        AddLabelledRow(root, "MP3 quality:", _bitrateBox);
 
-        _convertButton.Text = "Convert";
-        _convertButton.Width = 120;
-        _convertButton.Height = 30;
-        _convertButton.Location = new Point(ClientSize.Width - pad - _convertButton.Width, _bitrateBox.Top - 3);
-        _convertButton.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-        _convertButton.Click += async (_, _) => await OnConvertClicked();
+        // --- Download mode ---
+        _modeBox.DropDownStyle = ComboBoxStyle.DropDownList;
+        _modeBox.Items.AddRange(new object[] { "MP3 only", "Video only", "MP3 + Video (both)" });
+        _modeBox.SelectedIndex = _settings.Mode switch
+        {
+            DownloadMode.Mp3Only => 0,
+            DownloadMode.VideoOnly => 1,
+            _ => 2,
+        };
+        _modeBox.Margin = new Padding(0, 2, 0, 8);
+        SizeComboToContent(_modeBox);
+        AddLabelledRow(root, "Download:", _modeBox);
 
+        // --- Checkboxes ---
         _playlistCheck.Text = "Download the whole playlist (if the link is one)";
         _playlistCheck.AutoSize = true;
-        _playlistCheck.Location = new Point(pad, _bitrateBox.Bottom + 12);
+        AddFullRow(root, _playlistCheck);
 
         _dedupeCheck.Text = "Clean up duplicate songs when done";
         _dedupeCheck.AutoSize = true;
-        _dedupeCheck.Location = new Point(pad, _playlistCheck.Bottom + 6);
         _dedupeCheck.Checked = _settings.CleanDuplicatesAfter;
+        _dedupeCheck.Margin = new Padding(3, 3, 3, 8);
+        AddFullRow(root, _dedupeCheck);
 
+        // --- Login status + button ---
         _loginStatus.AutoSize = true;
-        _loginStatus.Location = new Point(pad, _dedupeCheck.Bottom + 12);
-
+        _loginStatus.Anchor = AnchorStyles.Left;
         _loginButton.Text = "YouTube login…";
-        _loginButton.Width = 130;
-        _loginButton.Location = new Point(ClientSize.Width - pad - _loginButton.Width, _dedupeCheck.Bottom + 8);
-        _loginButton.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+        _loginButton.AutoSize = true;
+        _loginButton.Anchor = AnchorStyles.Right;
         _loginButton.Click += (_, _) => OpenLogin();
+        root.Controls.Add(_loginStatus, 0, root.RowCount);
+        root.Controls.Add(_loginButton, 1, root.RowCount);
+        root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        root.RowCount++;
 
-        _logBox.Location = new Point(pad, _loginButton.Bottom + 12);
+        // --- Convert button (right-aligned, own row) ---
+        _convertButton.Text = "Convert";
+        _convertButton.AutoSize = true;
+        _convertButton.Padding = new Padding(14, 4, 14, 4);
+        _convertButton.Anchor = AnchorStyles.Right;
+        _convertButton.Margin = new Padding(0, 8, 0, 8);
+        _convertButton.Click += async (_, _) => await OnConvertClicked();
+        AddFullRow(root, _convertButton, anchorRight: true);
+
+        // --- Log (takes remaining space) ---
         _logBox.Multiline = true;
         _logBox.ReadOnly = true;
         _logBox.ScrollBars = ScrollBars.Vertical;
         _logBox.BackColor = Color.FromArgb(30, 30, 30);
         _logBox.ForeColor = Color.Gainsboro;
         _logBox.Font = new Font("Consolas", 9f);
-        _logBox.Width = ClientSize.Width - pad * 2;
-        _logBox.Height = ClientSize.Height - _logBox.Top - 36;
-        _logBox.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
+        _logBox.Dock = DockStyle.Fill;
+        _logBox.Margin = new Padding(0, 0, 0, 6);
+        root.Controls.Add(_logBox, 0, root.RowCount);
+        root.SetColumnSpan(_logBox, 2);
+        root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        root.RowCount++;
 
-        _statusLabel.Location = new Point(pad, ClientSize.Height - 24);
+        // --- Status ---
         _statusLabel.AutoSize = true;
-        _statusLabel.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
         _statusLabel.Text = "Ready.";
+        AddFullRow(root, _statusLabel);
 
-        Controls.AddRange(new Control[]
-        {
-            urlLabel, _urlBox, folderLabel, _folderBox, _changeFolderButton, _openFolderButton,
-            qualityLabel, _bitrateBox, _playlistCheck, _dedupeCheck,
-            _loginStatus, _loginButton, _convertButton, _logBox, _statusLabel,
-        });
-
+        Controls.Add(root);
         AcceptButton = _convertButton;
-        RefreshLoginStatus();
     }
 
-    private void OpenLogin()
+    /// <summary>Widen a dropdown so its longest item shows fully at the current font.</summary>
+    private static void SizeComboToContent(ComboBox combo)
     {
-        using var login = new LoginForm(_settings);
-        login.ShowDialog(this);
-        RefreshLoginStatus();
+        int widest = 0;
+        foreach (var item in combo.Items)
+            widest = Math.Max(widest, TextRenderer.MeasureText(item?.ToString() ?? "", combo.Font).Width);
+        combo.Width = widest + 40; // room for the dropdown arrow + padding
+        combo.DropDownWidth = combo.Width;
     }
 
-    private void RefreshLoginStatus()
+    private static Label MakeLabel(string text) => new()
     {
-        if (_settings.LoginActive)
-        {
-            var who = string.IsNullOrWhiteSpace(_settings.AccountLabel) ? "configured" : _settings.AccountLabel;
-            _loginStatus.ForeColor = Color.ForestGreen;
-            _loginStatus.Text = $"🔓 Logged in as: {who}";
-        }
-        else
-        {
-            _loginStatus.ForeColor = Color.Gray;
-            _loginStatus.Text = "🔒 Login off — public videos only";
-        }
+        Text = text,
+        AutoSize = true,
+        Margin = new Padding(3, 4, 3, 0),
+    };
+
+    private static void AddFullRow(TableLayoutPanel root, Control control, bool anchorRight = false)
+    {
+        if (anchorRight)
+            control.Anchor = AnchorStyles.Right;
+        root.Controls.Add(control, 0, root.RowCount);
+        root.SetColumnSpan(control, 2);
+        root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        root.RowCount++;
+    }
+
+    private static void AddLabelledRow(TableLayoutPanel root, string label, Control control)
+    {
+        var lbl = MakeLabel(label);
+        lbl.Anchor = AnchorStyles.Left;
+        lbl.Margin = new Padding(3, 6, 8, 4);
+        root.Controls.Add(lbl, 0, root.RowCount);
+        control.Anchor = AnchorStyles.Left;
+        root.Controls.Add(control, 1, root.RowCount);
+        root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        root.RowCount++;
     }
 
     /// <summary>Called by the tray when the window is brought up; grabs a URL from the clipboard.</summary>
@@ -187,6 +217,28 @@ public sealed class ConverterForm : Form
          text.StartsWith("https://", StringComparison.OrdinalIgnoreCase)) &&
         !text.Contains(' ') && !text.Contains('\n');
 
+    private void OpenLogin()
+    {
+        using var login = new LoginForm(_settings);
+        login.ShowDialog(this);
+        RefreshLoginStatus();
+    }
+
+    private void RefreshLoginStatus()
+    {
+        if (_settings.LoginActive)
+        {
+            var who = string.IsNullOrWhiteSpace(_settings.AccountLabel) ? "configured" : _settings.AccountLabel;
+            _loginStatus.ForeColor = Color.ForestGreen;
+            _loginStatus.Text = $"🔓 Logged in as: {who}";
+        }
+        else
+        {
+            _loginStatus.ForeColor = Color.Gray;
+            _loginStatus.Text = "🔒 Login off — public videos only";
+        }
+    }
+
     private void ChangeFolder()
     {
         using var dialog = new FolderBrowserDialog
@@ -209,11 +261,7 @@ public sealed class ConverterForm : Form
         try
         {
             Directory.CreateDirectory(_settings.OutputFolder);
-            Process.Start(new ProcessStartInfo
-            {
-                FileName = _settings.OutputFolder,
-                UseShellExecute = true,
-            });
+            Process.Start(new ProcessStartInfo { FileName = _settings.OutputFolder, UseShellExecute = true });
         }
         catch (Exception ex)
         {
@@ -223,6 +271,13 @@ public sealed class ConverterForm : Form
     }
 
     private int SelectedBitrate => _bitrateBox.SelectedIndex switch { 0 => 128, 2 => 320, _ => 192 };
+
+    private DownloadMode SelectedMode => _modeBox.SelectedIndex switch
+    {
+        0 => DownloadMode.Mp3Only,
+        1 => DownloadMode.VideoOnly,
+        _ => DownloadMode.Both,
+    };
 
     private async Task OnConvertClicked()
     {
@@ -249,6 +304,7 @@ public sealed class ConverterForm : Form
         }
 
         _settings.Mp3Bitrate = SelectedBitrate;
+        _settings.Mode = SelectedMode;
         _settings.CleanDuplicatesAfter = _dedupeCheck.Checked;
         _settings.Save();
 
@@ -262,7 +318,8 @@ public sealed class ConverterForm : Form
             var converter = new Converter(AppendLog);
             var cookies = _settings.LoginActive ? _settings.CookiesFilePath : null;
             var results = await converter.RunAsync(
-                url, _settings.OutputFolder, SelectedBitrate, _playlistCheck.Checked, cookies, _cts.Token);
+                url, _settings.OutputFolder, SelectedBitrate, _playlistCheck.Checked,
+                SelectedMode, cookies, _cts.Token);
 
             if (results.Count == 0)
             {
@@ -270,17 +327,17 @@ public sealed class ConverterForm : Form
             }
             else if (results.Count == 1)
             {
-                _statusLabel.Text = $"Saved: {Path.GetFileName(results[0].Mp3Path)}";
-                AppendLog($"\nMP3:   {results[0].Mp3Path}\nVideo: {results[0].VideoPath}\n");
+                var r = results[0];
+                var saved = r.Mp3Path ?? r.VideoPath;
+                _statusLabel.Text = $"Saved: {Path.GetFileName(saved)}";
             }
             else
             {
-                _statusLabel.Text = $"Saved {results.Count} new files (MP3s + videos).";
-                AppendLog($"\nSaved {results.Count} new videos + MP3s under:\n{_settings.OutputFolder}\n");
+                _statusLabel.Text = $"Saved {results.Count} new files.";
+                AppendLog($"\nSaved {results.Count} new file(s) under:\n{_settings.OutputFolder}\n");
             }
 
             // Optional unattended cleanup so a big batch comes back deduped.
-            // Sends extras to the Recycle Bin (recoverable) with no prompt.
             if (_dedupeCheck.Checked)
             {
                 _statusLabel.Text = "Checking for duplicate songs…";
@@ -291,9 +348,6 @@ public sealed class ConverterForm : Form
                 _statusLabel.Text = removed > 0
                     ? $"Done. Removed {removed} duplicate(s) to the Recycle Bin."
                     : "Done. No duplicates found.";
-                AppendLog(removed > 0
-                    ? $"\nCleanup complete — {removed} duplicate(s) sent to the Recycle Bin.\n"
-                    : "\nCleanup complete — no duplicates found.\n");
             }
         }
         catch (OperationCanceledException)
@@ -323,6 +377,7 @@ public sealed class ConverterForm : Form
         _urlBox.Enabled = !busy;
         _changeFolderButton.Enabled = !busy;
         _bitrateBox.Enabled = !busy;
+        _modeBox.Enabled = !busy;
         _playlistCheck.Enabled = !busy;
         _dedupeCheck.Enabled = !busy;
         _loginButton.Enabled = !busy;

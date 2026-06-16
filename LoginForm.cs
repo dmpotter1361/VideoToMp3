@@ -30,88 +30,110 @@ public sealed class LoginForm : Form
     private void BuildUi()
     {
         Text = "YouTube Login";
-        Font = new Font("Segoe UI", 9f);
-        ClientSize = new Size(540, 430);
+        Font = SystemFonts.MessageBoxFont ?? new Font("Segoe UI", 9f);
+        AutoScaleMode = AutoScaleMode.Font;
         FormBorderStyle = FormBorderStyle.FixedDialog;
         MaximizeBox = false;
         MinimizeBox = false;
         StartPosition = FormStartPosition.CenterParent;
+        // Grow to fit the content at whatever font size the user runs.
+        AutoSize = true;
+        AutoSizeMode = AutoSizeMode.GrowAndShrink;
 
-        const int pad = 14;
-
-        var intro = new Label
+        var root = new TableLayoutPanel
         {
-            Text = "Only needed for PRIVATE playlists, Watch Later, or Liked videos.\n" +
-                   "Public videos work without this.",
-            Location = new Point(pad, pad),
+            Dock = DockStyle.Fill,
+            ColumnCount = 1,
             AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            Padding = new Padding(14),
         };
+        root.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+
+        AddRow(root, MakeLabel(
+            "Only needed for PRIVATE playlists, Watch Later, or Liked videos.\n" +
+            "Public videos work without this."));
 
         _enableCheck.Text = "Use my YouTube login when downloading";
         _enableCheck.AutoSize = true;
-        _enableCheck.Location = new Point(pad, intro.Bottom + 10);
+        _enableCheck.Margin = new Padding(3, 8, 3, 8);
+        AddRow(root, _enableCheck);
 
-        var howTo = new Label
-        {
-            Text =
-                "How to get the cookies file (one time):\n" +
-                "  1. In Chrome, signed in to the right account, install the free\n" +
-                "       extension “Get cookies.txt LOCALLY”.\n" +
-                "  2. Open youtube.com, click the extension, choose Export, and\n" +
-                "       save the .txt file somewhere (e.g. your Documents).\n" +
-                "  3. Click Browse below and pick that file.\n" +
-                "If private videos stop working later, just re-export the file.",
-            Location = new Point(pad, _enableCheck.Bottom + 10),
-            AutoSize = true,
-        };
+        AddRow(root, MakeLabel(
+            "How to get the cookies file (one time):\n" +
+            "  1. In Chrome, signed in to the right account, install the free\n" +
+            "       extension “Get cookies.txt LOCALLY”.\n" +
+            "  2. Open youtube.com, click the extension, choose Export, and\n" +
+            "       save the .txt file somewhere (e.g. your Documents).\n" +
+            "  3. Click Browse below and pick that file.\n" +
+            "If private videos stop working later, just re-export the file."));
 
-        var fileLabel = new Label { Text = "Cookies file:", Location = new Point(pad, howTo.Bottom + 12), AutoSize = true };
-
-        _fileBox.Location = new Point(pad, fileLabel.Bottom + 4);
-        _fileBox.Width = ClientSize.Width - pad * 2 - 100;
+        AddRow(root, MakeLabel("Cookies file:"));
         _fileBox.ReadOnly = true;
-
+        _fileBox.Width = 380;
+        _fileBox.Margin = new Padding(0);
         _browseButton.Text = "Browse…";
-        _browseButton.Width = 88;
-        _browseButton.Location = new Point(_fileBox.Right + 6, _fileBox.Top - 1);
+        _browseButton.AutoSize = true;
+        _browseButton.Margin = new Padding(6, 0, 0, 0);
         _browseButton.Click += (_, _) => Browse();
+        var fileRow = new TableLayoutPanel { ColumnCount = 2, AutoSize = true, Margin = new Padding(0, 2, 0, 8) };
+        fileRow.Controls.Add(_fileBox, 0, 0);
+        fileRow.Controls.Add(_browseButton, 1, 0);
+        AddRow(root, fileRow);
 
-        var labelLabel = new Label
-        {
-            Text = "Account name (shown in the app, e.g. “Deborah”):",
-            Location = new Point(pad, _fileBox.Bottom + 12),
-            AutoSize = true,
-        };
-        _labelBox.Location = new Point(pad, labelLabel.Bottom + 4);
+        AddRow(root, MakeLabel("Account name (shown in the app, e.g. “Deborah”):"));
         _labelBox.Width = 260;
+        _labelBox.Margin = new Padding(0, 2, 0, 8);
+        AddRow(root, _labelBox);
 
         _testButton.Text = "Test login";
-        _testButton.Width = 100;
-        _testButton.Location = new Point(pad, _labelBox.Bottom + 14);
-        _testButton.Click += async (_, _) => await TestLogin();
-
+        _testButton.AutoSize = true;
+        _testButton.Margin = new Padding(0);
         _testStatus.AutoSize = true;
-        _testStatus.Location = new Point(_testButton.Right + 10, _testButton.Top + 4);
-        _testStatus.Text = "";
+        _testStatus.Anchor = AnchorStyles.Left;
+        _testStatus.Margin = new Padding(10, 0, 0, 0);
+        _testButton.Click += async (_, _) => await TestLogin();
+        var testRow = new TableLayoutPanel { ColumnCount = 2, AutoSize = true, Margin = new Padding(0, 0, 0, 10) };
+        testRow.Controls.Add(_testButton, 0, 0);
+        testRow.Controls.Add(_testStatus, 1, 0);
+        testRow.CellBorderStyle = TableLayoutPanelCellBorderStyle.None;
+        AddRow(root, testRow);
 
         _okButton.Text = "Save";
-        _okButton.Width = 90;
-        _okButton.Location = new Point(ClientSize.Width - pad - 90, ClientSize.Height - 40);
+        _okButton.AutoSize = true;
+        _okButton.Margin = new Padding(6, 0, 0, 0);
         _okButton.Click += (_, _) => SaveAndClose();
-
         _cancelButton.Text = "Cancel";
-        _cancelButton.Width = 90;
-        _cancelButton.Location = new Point(_okButton.Left - 96, ClientSize.Height - 40);
+        _cancelButton.AutoSize = true;
         _cancelButton.DialogResult = DialogResult.Cancel;
-
-        Controls.AddRange(new Control[]
+        var buttonRow = new FlowLayoutPanel
         {
-            intro, _enableCheck, howTo, fileLabel, _fileBox, _browseButton,
-            labelLabel, _labelBox, _testButton, _testStatus, _okButton, _cancelButton,
-        });
+            FlowDirection = FlowDirection.RightToLeft,
+            AutoSize = true,
+            Dock = DockStyle.Fill,
+            Margin = new Padding(0, 6, 0, 0),
+        };
+        buttonRow.Controls.Add(_okButton);
+        buttonRow.Controls.Add(_cancelButton);
+        AddRow(root, buttonRow);
 
+        Controls.Add(root);
         AcceptButton = _okButton;
         CancelButton = _cancelButton;
+    }
+
+    private static Label MakeLabel(string text) => new()
+    {
+        Text = text,
+        AutoSize = true,
+        Margin = new Padding(3, 2, 3, 2),
+    };
+
+    private static void AddRow(TableLayoutPanel root, Control control)
+    {
+        root.Controls.Add(control, 0, root.RowCount);
+        root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        root.RowCount++;
     }
 
     private void LoadFromSettings()
@@ -162,7 +184,7 @@ public sealed class LoginForm : Form
         {
             // The Liked-videos list (LL) is only reachable when logged in, so a
             // clean exit means the cookies are valid and signed in.
-            var (exit, _) = await RunYtDlp(ytdlp, new[]
+            var exit = await RunYtDlp(ytdlp, new[]
             {
                 "--cookies", file,
                 "--flat-playlist", "--skip-download", "--no-warnings",
@@ -194,7 +216,7 @@ public sealed class LoginForm : Form
         }
     }
 
-    private static async Task<(int exit, string output)> RunYtDlp(string exe, IReadOnlyList<string> args)
+    private static async Task<int> RunYtDlp(string exe, IReadOnlyList<string> args)
     {
         var psi = new ProcessStartInfo
         {
@@ -210,10 +232,10 @@ public sealed class LoginForm : Form
 
         using var proc = new Process { StartInfo = psi };
         proc.Start();
-        var stdout = await proc.StandardOutput.ReadToEndAsync();
+        _ = await proc.StandardOutput.ReadToEndAsync();
         _ = await proc.StandardError.ReadToEndAsync();
         await proc.WaitForExitAsync();
-        return (proc.ExitCode, stdout);
+        return proc.ExitCode;
     }
 
     private void SaveAndClose()

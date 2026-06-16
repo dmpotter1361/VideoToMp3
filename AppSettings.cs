@@ -3,6 +3,14 @@ using System.Text.Json.Serialization;
 
 namespace VideoToMp3;
 
+/// <summary>What to keep from a download.</summary>
+public enum DownloadMode
+{
+    Mp3Only,
+    VideoOnly,
+    Both,
+}
+
 /// <summary>
 /// Tiny JSON-backed settings stored in %APPDATA%\VideoToMp3\settings.json.
 /// </summary>
@@ -10,6 +18,7 @@ public sealed class AppSettings
 {
     public string OutputFolder { get; set; } = DefaultOutputFolder;
     public int Mp3Bitrate { get; set; } = 192;
+    public DownloadMode Mode { get; set; } = DownloadMode.Both;
     public bool CleanDuplicatesAfter { get; set; } = false;
     public bool UseLogin { get; set; } = false;
     public string CookiesFilePath { get; set; } = "";

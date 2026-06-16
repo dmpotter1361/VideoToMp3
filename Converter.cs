@@ -3,12 +3,12 @@ using System.Text;
 
 namespace VideoToMp3;
 
-public sealed record ConversionResult(string VideoPath, string Mp3Path);
+public sealed record ConversionResult(string? VideoPath, string? Mp3Path);
 
 /// <summary>
-/// Downloads the best video(s) with yt-dlp, then produces an MP3 with ffmpeg
-/// for each. Videos and MP3s are kept in separate subfolders, and a download
-/// archive prevents re-downloading content that appears in multiple playlists.
+/// Downloads with yt-dlp and (when MP3 is wanted) converts with ffmpeg. Videos
+/// and MP3s are kept in separate subfolders, and a download archive prevents
+/// re-downloading content that appears in multiple playlists.
 /// </summary>
 public sealed class Converter
 {
@@ -18,30 +18,31 @@ public sealed class Converter
 
     public async Task<IReadOnlyList<ConversionResult>> RunAsync(
         string url, string outputFolder, int bitrate, bool playlist,
-        string? cookiesFile, CancellationToken ct)
+        DownloadMode mode, string? cookiesFile, CancellationToken ct)
     {
         if (ToolLocator.YtDlpPath is not string ytdlp)
             throw new InvalidOperationException("yt-dlp.exe was not found.");
-        if (ToolLocator.FfmpegPath is not string ffmpeg)
-            throw new InvalidOperationException("ffmpeg.exe was not found.");
 
-        // Keep videos and MP3s apart so the music folder stays clean.
         var videoDir = Path.Combine(outputFolder, "Videos");
         var mp3Dir = Path.Combine(outputFolder, "MP3s");
-        Directory.CreateDirectory(videoDir);
-        Directory.CreateDirectory(mp3Dir);
+        var wantsVideoFile = mode is DownloadMode.VideoOnly or DownloadMode.Both;
+        var wantsMp3 = mode is DownloadMode.Mp3Only or DownloadMode.Both;
+        if (wantsVideoFile) Directory.CreateDirectory(videoDir);
+        if (wantsMp3) Directory.CreateDirectory(mp3Dir);
 
-        // yt-dlp writes the final, post-merge path of every NEW item here
-        // (one per line); items already in the archive don't appear.
+        // yt-dlp writes the final path of every NEW item here (one per line);
+        // items already in the archive don't appear.
         var pathFile = Path.Combine(Path.GetTempPath(), $"v2mp3_{Guid.NewGuid():N}.txt");
 
         try
         {
             _log(playlist
-                ? "Reading playlist and downloading every video…\n\n"
-                : "Fetching video info and downloading…\n\n");
+                ? "Reading playlist and downloading every item…\n\n"
+                : "Fetching info and downloading…\n\n");
 
-            var outputTemplate = Path.Combine(videoDir, "%(title)s.%(ext)s");
+            // For MP3-only we let yt-dlp extract the audio directly (no kept video);
+            // otherwise we download the video and (for Both) convert afterwards.
+            var downloadDir = mode == DownloadMode.Mp3Only ? mp3Dir : videoDir;
 
             var ytArgs = new List<string>
             {
@@ -49,14 +50,24 @@ public sealed class Converter
                 "--windows-filenames",
                 "--no-mtime",
                 "--newline",
-                "--download-archive", DownloadArchivePath, // skip anything already grabbed
-                "-f", "bv*+ba/b",
-                "--merge-output-format", "mp4",
+                "--download-archive", DownloadArchivePath,
                 "--print-to-file", "after_move:filepath", pathFile,
-                "-o", outputTemplate,
+                "-o", Path.Combine(downloadDir, "%(title)s.%(ext)s"),
             };
+            if (mode == DownloadMode.Mp3Only)
+            {
+                ytArgs.AddRange(new[]
+                {
+                    "-f", "bestaudio/best",
+                    "-x", "--audio-format", "mp3", "--audio-quality", $"{bitrate}K",
+                });
+            }
+            else
+            {
+                ytArgs.AddRange(new[] { "-f", "bv*+ba/b", "--merge-output-format", "mp4" });
+            }
             if (playlist)
-                ytArgs.Add("--ignore-errors"); // one bad video shouldn't sink the batch
+                ytArgs.Add("--ignore-errors");
             if (!string.IsNullOrWhiteSpace(cookiesFile) && File.Exists(cookiesFile))
             {
                 ytArgs.Add("--cookies");
@@ -66,7 +77,7 @@ public sealed class Converter
 
             var ytExit = await RunProcessAsync(ytdlp, ytArgs, ct);
 
-            var videoPaths = File.Exists(pathFile)
+            var downloadedPaths = File.Exists(pathFile)
                 ? File.ReadAllLines(pathFile, Encoding.UTF8)
                     .Select(l => l.Trim())
                     .Where(l => l.Length > 0 && File.Exists(l))
@@ -74,9 +85,8 @@ public sealed class Converter
                     .ToList()
                 : new List<string>();
 
-            if (videoPaths.Count == 0)
+            if (downloadedPaths.Count == 0)
             {
-                // Nothing new is normal when everything's already in the archive.
                 if (ytExit == 0)
                 {
                     _log("\nNothing new to download — already in your library.\n");
@@ -86,31 +96,47 @@ public sealed class Converter
                     $"Download failed (yt-dlp exit code {ytExit}). Check the URL and your connection.");
             }
 
-            var results = new List<ConversionResult>(videoPaths.Count);
-            for (int i = 0; i < videoPaths.Count; i++)
+            // MP3-only and Video-only are done after the download itself.
+            if (mode == DownloadMode.Mp3Only)
+            {
+                _log($"\nDone. {downloadedPaths.Count} MP3(s) ready.\n");
+                return downloadedPaths.Select(p => new ConversionResult(null, p)).ToList();
+            }
+            if (mode == DownloadMode.VideoOnly)
+            {
+                _log($"\nDone. {downloadedPaths.Count} video(s) ready.\n");
+                return downloadedPaths.Select(p => new ConversionResult(p, null)).ToList();
+            }
+
+            // Both: convert each downloaded video to an MP3 alongside it.
+            if (ToolLocator.FfmpegPath is not string ffmpeg)
+                throw new InvalidOperationException("ffmpeg.exe was not found.");
+
+            var results = new List<ConversionResult>(downloadedPaths.Count);
+            for (int i = 0; i < downloadedPaths.Count; i++)
             {
                 ct.ThrowIfCancellationRequested();
-                var videoPath = videoPaths[i];
+                var videoPath = downloadedPaths[i];
 
-                _log(videoPaths.Count > 1
-                    ? $"\nConverting {i + 1} of {videoPaths.Count} to MP3 ({bitrate} kbps): {Path.GetFileName(videoPath)}\n"
+                _log(downloadedPaths.Count > 1
+                    ? $"\nConverting {i + 1} of {downloadedPaths.Count} to MP3 ({bitrate} kbps): {Path.GetFileName(videoPath)}\n"
                     : $"\nConverting to MP3 ({bitrate} kbps)…\n");
 
-                var mp3Path = Path.Combine(mp3Dir,
-                    Path.GetFileNameWithoutExtension(videoPath) + ".mp3");
+                var mp3Path = Path.Combine(mp3Dir, Path.GetFileNameWithoutExtension(videoPath) + ".mp3");
                 var ffArgs = new[]
                 {
                     "-y", "-i", videoPath, "-vn", "-c:a", "libmp3lame", "-b:a", $"{bitrate}k", mp3Path,
                 };
 
                 var ffExit = await RunProcessAsync(ffmpeg, ffArgs, ct);
-                if (ffExit == 0 && File.Exists(mp3Path))
-                    results.Add(new ConversionResult(videoPath, mp3Path));
-                else
-                    _log($"  (skipped — MP3 conversion failed for this one)\n");
+                results.Add(ffExit == 0 && File.Exists(mp3Path)
+                    ? new ConversionResult(videoPath, mp3Path)
+                    : new ConversionResult(videoPath, null));
+                if (ffExit != 0)
+                    _log("  (kept the video, but MP3 conversion failed for this one)\n");
             }
 
-            _log($"\nDone. {results.Count} new file(s) ready.\n");
+            _log($"\nDone. {results.Count} item(s) ready.\n");
             return results;
         }
         finally

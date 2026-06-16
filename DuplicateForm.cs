@@ -22,66 +22,80 @@ public sealed class DuplicateForm : Form
     private void BuildUi()
     {
         Text = "Find Duplicate Songs";
-        Font = new Font("Segoe UI", 9f);
-        ClientSize = new Size(560, 420);
-        MinimumSize = new Size(480, 360);
+        Font = SystemFonts.MessageBoxFont ?? new Font("Segoe UI", 9f);
+        AutoScaleMode = AutoScaleMode.Font;
+        ClientSize = new Size(600, 460);
+        MinimumSize = new Size(500, 400);
         StartPosition = FormStartPosition.CenterScreen;
 
-        const int pad = 12;
-
-        var info = new Label
+        var root = new TableLayoutPanel
         {
-            Text = "Scans for the same song saved more than once (even under different\n" +
-                   "names or quality) and removes the extra copies, keeping the best one.",
-            Location = new Point(pad, pad),
-            AutoSize = true,
+            Dock = DockStyle.Fill,
+            ColumnCount = 1,
+            Padding = new Padding(12),
         };
+        root.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
 
-        var folderLabel = new Label
-        {
-            Text = "Folder to check:",
-            Location = new Point(pad, info.Bottom + 10),
-            AutoSize = true,
-        };
+        AddRow(root, MakeLabel(
+            "Scans for the same song saved more than once (even under different\n" +
+            "names or quality) and removes the extra copies, keeping the best one."));
 
-        _folderBox.Location = new Point(pad, folderLabel.Bottom + 4);
-        _folderBox.Width = ClientSize.Width - pad * 2 - 100;
+        AddRow(root, MakeLabel("Folder to check:"));
+
         _folderBox.ReadOnly = true;
+        _folderBox.Dock = DockStyle.Fill;
         _folderBox.Text = _settings.OutputFolder;
-        _folderBox.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
-
+        _folderBox.Margin = new Padding(0);
         _changeFolderButton.Text = "Change…";
-        _changeFolderButton.Width = 88;
-        _changeFolderButton.Location = new Point(_folderBox.Right + 6, _folderBox.Top - 1);
-        _changeFolderButton.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+        _changeFolderButton.AutoSize = true;
+        _changeFolderButton.Margin = new Padding(6, 0, 0, 0);
         _changeFolderButton.Click += (_, _) => ChangeFolder();
+        var folderRow = new TableLayoutPanel { ColumnCount = 2, Dock = DockStyle.Fill, AutoSize = true, Margin = new Padding(0, 2, 0, 8) };
+        folderRow.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        folderRow.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        folderRow.Controls.Add(_folderBox, 0, 0);
+        folderRow.Controls.Add(_changeFolderButton, 1, 0);
+        AddRow(root, folderRow);
 
         _scanButton.Text = "Scan for duplicates";
-        _scanButton.Width = 160;
-        _scanButton.Height = 30;
-        _scanButton.Location = new Point(pad, _folderBox.Bottom + 12);
+        _scanButton.AutoSize = true;
+        _scanButton.Padding = new Padding(10, 4, 10, 4);
+        _scanButton.Anchor = AnchorStyles.Left;
+        _scanButton.Margin = new Padding(0, 0, 0, 8);
         _scanButton.Click += async (_, _) => await OnScanClicked();
+        AddRow(root, _scanButton);
 
-        _logBox.Location = new Point(pad, _scanButton.Bottom + 12);
         _logBox.Multiline = true;
         _logBox.ReadOnly = true;
         _logBox.ScrollBars = ScrollBars.Vertical;
         _logBox.BackColor = Color.FromArgb(30, 30, 30);
         _logBox.ForeColor = Color.Gainsboro;
         _logBox.Font = new Font("Consolas", 9f);
-        _logBox.Width = ClientSize.Width - pad * 2;
-        _logBox.Height = ClientSize.Height - _logBox.Top - 36;
-        _logBox.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
+        _logBox.Dock = DockStyle.Fill;
+        _logBox.Margin = new Padding(0, 0, 0, 6);
+        root.Controls.Add(_logBox, 0, root.RowCount);
+        root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        root.RowCount++;
 
-        _statusLabel.Location = new Point(pad, ClientSize.Height - 24);
         _statusLabel.AutoSize = true;
-        _statusLabel.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
         _statusLabel.Text = "Ready.";
+        AddRow(root, _statusLabel);
 
-        Controls.AddRange(new Control[]
-        {
-            info, folderLabel, _folderBox, _changeFolderButton, _scanButton, _logBox, _statusLabel,
-        });
+        Controls.Add(root);
+    }
+
+    private static Label MakeLabel(string text) => new()
+    {
+        Text = text,
+        AutoSize = true,
+        Margin = new Padding(3, 4, 3, 2),
+    };
+
+    private static void AddRow(TableLayoutPanel root, Control control)
+    {
+        root.Controls.Add(control, 0, root.RowCount);
+        root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        root.RowCount++;
     }
 
     private void ChangeFolder()
@@ -89,9 +103,7 @@ public sealed class DuplicateForm : Form
         using var dialog = new FolderBrowserDialog
         {
             Description = "Choose a folder to scan for duplicate songs",
-            SelectedPath = Directory.Exists(_folderBox.Text)
-                ? _folderBox.Text
-                : _settings.OutputFolder,
+            SelectedPath = Directory.Exists(_folderBox.Text) ? _folderBox.Text : _settings.OutputFolder,
         };
         if (dialog.ShowDialog(this) == DialogResult.OK)
             _folderBox.Text = dialog.SelectedPath;
@@ -115,11 +127,10 @@ public sealed class DuplicateForm : Form
 
         if (ToolLocator.FpcalcPath is null)
         {
-            MessageBox.Show(this,
-                "The fingerprint tool wasn't found. Install it with:\n\n" +
-                "winget install AcoustID.Chromaprint",
-                "Missing tool", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            return;
+            using var bootstrap = new BootstrapForm();
+            bootstrap.ShowDialog(this);
+            if (ToolLocator.FpcalcPath is null)
+                return;
         }
 
         SetBusy(true);

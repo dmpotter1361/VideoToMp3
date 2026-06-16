@@ -11,7 +11,11 @@ public sealed class LoginForm : Form
 {
     private readonly AppSettings _settings;
 
+    private const string ExtensionUrl =
+        "https://chromewebstore.google.com/detail/get-cookiestxt-locally/cclelndahbckbenkjhflpdbgdldlbecc";
+
     private readonly CheckBox _enableCheck = new();
+    private readonly LinkLabel _extensionLink = new();
     private readonly TextBox _fileBox = new();
     private readonly Button _browseButton = new();
     private readonly TextBox _labelBox = new();
@@ -30,6 +34,7 @@ public sealed class LoginForm : Form
     private void BuildUi()
     {
         Text = "YouTube Login";
+        if (AppResources.AppIcon is { } icon) Icon = icon;
         Font = SystemFonts.MessageBoxFont ?? new Font("Segoe UI", 9f);
         AutoScaleMode = AutoScaleMode.Font;
         FormBorderStyle = FormBorderStyle.FixedDialog;
@@ -62,11 +67,17 @@ public sealed class LoginForm : Form
         AddRow(root, MakeLabel(
             "How to get the cookies file (one time):\n" +
             "  1. In Chrome, signed in to the right account, install the free\n" +
-            "       extension “Get cookies.txt LOCALLY”.\n" +
+            "       extension “Get cookies.txt LOCALLY” (link below).\n" +
             "  2. Open youtube.com, click the extension, choose Export, and\n" +
             "       save the .txt file somewhere (e.g. your Documents).\n" +
             "  3. Click Browse below and pick that file.\n" +
             "If private videos stop working later, just re-export the file."));
+
+        _extensionLink.Text = "▶  Open “Get cookies.txt LOCALLY” in the Chrome Web Store";
+        _extensionLink.AutoSize = true;
+        _extensionLink.Margin = new Padding(3, 0, 3, 10);
+        _extensionLink.LinkClicked += (_, _) => OpenUrl(ExtensionUrl);
+        AddRow(root, _extensionLink);
 
         AddRow(root, MakeLabel("Cookies file:"));
         _fileBox.ReadOnly = true;
@@ -105,16 +116,21 @@ public sealed class LoginForm : Form
         _okButton.Click += (_, _) => SaveAndClose();
         _cancelButton.Text = "Cancel";
         _cancelButton.AutoSize = true;
+        _cancelButton.Margin = new Padding(0);
         _cancelButton.DialogResult = DialogResult.Cancel;
+        // Fill the row width (don't auto-shrink) so RightToLeft pins the buttons
+        // to the right edge regardless of font size.
         var buttonRow = new FlowLayoutPanel
         {
             FlowDirection = FlowDirection.RightToLeft,
-            AutoSize = true,
             Dock = DockStyle.Fill,
-            Margin = new Padding(0, 6, 0, 0),
+            AutoSize = false,
+            WrapContents = false,
+            Margin = new Padding(0, 8, 0, 0),
         };
-        buttonRow.Controls.Add(_okButton);
+        buttonRow.Controls.Add(_okButton);     // rightmost
         buttonRow.Controls.Add(_cancelButton);
+        buttonRow.Height = _okButton.PreferredSize.Height + 4;
         AddRow(root, buttonRow);
 
         Controls.Add(root);
@@ -134,6 +150,16 @@ public sealed class LoginForm : Form
         root.Controls.Add(control, 0, root.RowCount);
         root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         root.RowCount++;
+    }
+
+    private void OpenUrl(string url)
+    {
+        try { Process.Start(new ProcessStartInfo { FileName = url, UseShellExecute = true }); }
+        catch (Exception ex)
+        {
+            MessageBox.Show(this, ex.Message, "Couldn't open link",
+                MessageBoxButtons.OK, MessageBoxIcon.Warning);
+        }
     }
 
     private void LoadFromSettings()

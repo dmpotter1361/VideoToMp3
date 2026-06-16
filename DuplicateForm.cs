@@ -22,6 +22,7 @@ public sealed class DuplicateForm : Form
     private void BuildUi()
     {
         Text = "Find Duplicate Songs";
+        if (AppResources.AppIcon is { } icon) Icon = icon;
         Font = SystemFonts.MessageBoxFont ?? new Font("Segoe UI", 9f);
         AutoScaleMode = AutoScaleMode.Font;
         ClientSize = new Size(600, 460);

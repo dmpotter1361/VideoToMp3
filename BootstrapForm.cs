@@ -18,6 +18,7 @@ public sealed class BootstrapForm : Form
     public BootstrapForm()
     {
         Text = "Video to MP3 — First-time setup";
+        if (AppResources.AppIcon is { } icon) Icon = icon;
         Font = SystemFonts.MessageBoxFont ?? new Font("Segoe UI", 9f);
         AutoScaleMode = AutoScaleMode.Font;
         ClientSize = new Size(540, 380);

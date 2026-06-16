@@ -139,17 +139,8 @@ public sealed class TrayAppContext : ApplicationContext
     /// <summary>Uses the app's own icon for the tray; falls back to a drawn one.</summary>
     private static Icon BuildIcon()
     {
-        try
-        {
-            var exe = Environment.ProcessPath;
-            if (!string.IsNullOrEmpty(exe))
-            {
-                var appIcon = Icon.ExtractAssociatedIcon(exe);
-                if (appIcon is not null)
-                    return appIcon;
-            }
-        }
-        catch { /* fall back to the drawn icon below */ }
+        if (AppResources.AppIcon is { } appIcon)
+            return appIcon;
 
         using var bmp = new Bitmap(32, 32);
         using (var g = Graphics.FromImage(bmp))

@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Text;
+using System.Text.RegularExpressions;
 
 namespace VideoToMp3;
 
@@ -13,8 +14,17 @@ public sealed record ConversionResult(string? VideoPath, string? Mp3Path);
 public sealed class Converter
 {
     private readonly Action<string> _log;
+    private readonly Action<string>? _onStatus;
 
-    public Converter(Action<string> log) => _log = log;
+    // yt-dlp prints this for each playlist item, e.g. "Downloading item 3 of 15".
+    private static readonly Regex ItemProgress =
+        new(@"Downloading item (\d+) of (\d+)", RegexOptions.Compiled);
+
+    public Converter(Action<string> log, Action<string>? onStatus = null)
+    {
+        _log = log;
+        _onStatus = onStatus;
+    }
 
     public async Task<IReadOnlyList<ConversionResult>> RunAsync(
         string url, string outputFolder, int bitrate, bool playlist,
@@ -118,9 +128,15 @@ public sealed class Converter
                 ct.ThrowIfCancellationRequested();
                 var videoPath = downloadedPaths[i];
 
-                _log(downloadedPaths.Count > 1
-                    ? $"\nConverting {i + 1} of {downloadedPaths.Count} to MP3 ({bitrate} kbps): {Path.GetFileName(videoPath)}\n"
-                    : $"\nConverting to MP3 ({bitrate} kbps)…\n");
+                if (downloadedPaths.Count > 1)
+                {
+                    _log($"\nConverting {i + 1} of {downloadedPaths.Count} to MP3 ({bitrate} kbps): {Path.GetFileName(videoPath)}\n");
+                    _onStatus?.Invoke($"Converting {i + 1} of {downloadedPaths.Count} to MP3…");
+                }
+                else
+                {
+                    _log($"\nConverting to MP3 ({bitrate} kbps)…\n");
+                }
 
                 var mp3Path = Path.Combine(mp3Dir, Path.GetFileNameWithoutExtension(videoPath) + ".mp3");
                 var ffArgs = new[]
@@ -179,8 +195,8 @@ public sealed class Converter
 
         using var proc = new Process { StartInfo = psi, EnableRaisingEvents = true };
 
-        proc.OutputDataReceived += (_, e) => { if (e.Data is not null) _log(e.Data + "\n"); };
-        proc.ErrorDataReceived += (_, e) => { if (e.Data is not null) _log(e.Data + "\n"); };
+        proc.OutputDataReceived += (_, e) => { if (e.Data is not null) { _log(e.Data + "\n"); ReportProgress(e.Data); } };
+        proc.ErrorDataReceived += (_, e) => { if (e.Data is not null) { _log(e.Data + "\n"); ReportProgress(e.Data); } };
 
         proc.Start();
         proc.BeginOutputReadLine();
@@ -192,5 +208,12 @@ public sealed class Converter
         }
 
         return proc.ExitCode;
+    }
+
+    private void ReportProgress(string line)
+    {
+        var m = ItemProgress.Match(line);
+        if (m.Success)
+            _onStatus?.Invoke($"Downloading {m.Groups[1].Value} of {m.Groups[2].Value}…");
     }
 }

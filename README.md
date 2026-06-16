@@ -131,6 +131,7 @@ same way. To pick up where it left off on your own machine:
 - **`TrayAppContext.cs`** — the tray icon and menu; opens the windows.
 - **`ConverterForm.cs` / `DuplicateForm.cs` / `LoginForm.cs`** — the windows.
 - **`AppSettings.cs`** — JSON settings in `%APPDATA%\VideoToMp3\`.
+- **`AppResources.cs`** — shared app icon for the windows and tray.
 
 ## Acknowledgments
 

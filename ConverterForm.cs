@@ -33,6 +33,7 @@ public sealed class ConverterForm : Form
     private void BuildUi()
     {
         Text = "Video to MP3";
+        if (AppResources.AppIcon is { } icon) Icon = icon;
         Font = SystemFonts.MessageBoxFont ?? new Font("Segoe UI", 9f);
         AutoScaleMode = AutoScaleMode.Font;
         ClientSize = new Size(620, 500);
@@ -315,7 +316,7 @@ public sealed class ConverterForm : Form
 
         try
         {
-            var converter = new Converter(AppendLog);
+            var converter = new Converter(AppendLog, SetStatus);
             var cookies = _settings.LoginActive ? _settings.CookiesFilePath : null;
             var results = await converter.RunAsync(
                 url, _settings.OutputFolder, SelectedBitrate, _playlistCheck.Checked,
@@ -382,6 +383,17 @@ public sealed class ConverterForm : Form
         _dedupeCheck.Enabled = !busy;
         _loginButton.Enabled = !busy;
         UseWaitCursor = busy;
+    }
+
+    private void SetStatus(string text)
+    {
+        if (_statusLabel.IsDisposed) return;
+        if (_statusLabel.InvokeRequired)
+        {
+            _statusLabel.BeginInvoke(() => SetStatus(text));
+            return;
+        }
+        _statusLabel.Text = text;
     }
 
     private void AppendLog(string text)

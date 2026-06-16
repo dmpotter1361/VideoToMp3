@@ -1,0 +1,17 @@
+# Build output
+bin/
+obj/
+.vs/
+*.user
+publish/
+dist/
+
+# Local runtime data — normally lives in %APPDATA%\VideoToMp3, never in the
+# repo, but ignored here too as a safety net so no personal data is committed.
+settings.json
+downloaded.txt
+*cookies*.txt
+*.cookies
+
+# Scratch / test folders
+_*/

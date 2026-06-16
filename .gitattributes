@@ -1,0 +1,7 @@
+# Normalize line endings; let Git handle CRLF on checkout for Windows.
+* text=auto
+
+# Binary assets — never normalize.
+*.ico binary
+*.png binary
+*.zip binary

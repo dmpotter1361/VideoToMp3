@@ -28,8 +28,8 @@ build and not code-signed, so Windows SmartScreen may warn — choose
 
 - **Tray app** — runs quietly next to the clock; double-click to open the converter.
 - **Paste & convert** — auto-fills the link from your clipboard; one click makes the MP3.
-- **Keeps both** — the MP3 and the original video, sorted into tidy `MP3s\` and
-  `Videos\` subfolders so your music stays clean.
+- **MP3, video, or both** — choose what to keep; files are sorted into tidy
+  `MP3s\` and `Videos\` subfolders so your music stays clean.
 - **Quality choice** — 128 / 192 / 320 kbps (defaults to 192).
 - **Playlists** — optionally download every video in a playlist, numbered and in order;
   a bad item is skipped instead of failing the batch.

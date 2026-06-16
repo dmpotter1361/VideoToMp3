@@ -19,6 +19,17 @@ public sealed class TrayAppContext : ApplicationContext
         menu.Items.Add("YouTube login…", null, (_, _) => ShowLogin());
         menu.Items.Add("Open output folder", null, (_, _) => OpenOutputFolder());
         menu.Items.Add(new ToolStripSeparator());
+
+        var startupItem = new ToolStripMenuItem("Start with Windows")
+        {
+            CheckOnClick = true,
+            Checked = StartupManager.IsStartupEnabled(),
+        };
+        startupItem.Click += (_, _) => ToggleStartup(startupItem);
+        menu.Items.Add(startupItem);
+        menu.Items.Add("Create desktop shortcut", null, (_, _) => CreateShortcut());
+
+        menu.Items.Add(new ToolStripSeparator());
         menu.Items.Add("Exit", null, (_, _) => ExitApp());
 
         _trayIcon = new NotifyIcon
@@ -67,6 +78,36 @@ public sealed class TrayAppContext : ApplicationContext
             _dupeForm.WindowState = FormWindowState.Normal;
         _dupeForm.Activate();
         _dupeForm.BringToFront();
+    }
+
+    private void ToggleStartup(ToolStripMenuItem item)
+    {
+        try
+        {
+            StartupManager.SetStartup(item.Checked);
+        }
+        catch (Exception ex)
+        {
+            item.Checked = !item.Checked; // revert on failure
+            MessageBox.Show(ex.Message, "Start with Windows",
+                MessageBoxButtons.OK, MessageBoxIcon.Warning);
+        }
+    }
+
+    private void CreateShortcut()
+    {
+        try
+        {
+            StartupManager.CreateDesktopShortcut();
+            _trayIcon.BalloonTipTitle = "Video to MP3";
+            _trayIcon.BalloonTipText = "Desktop shortcut created.";
+            _trayIcon.ShowBalloonTip(3000);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(ex.Message, "Create desktop shortcut",
+                MessageBoxButtons.OK, MessageBoxIcon.Warning);
+        }
     }
 
     private void ShowLogin()

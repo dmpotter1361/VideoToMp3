@@ -1,6 +1,6 @@
 # Video to MP3
 
-[![Latest release](https://img.shields.io/github/v/release/dmpotter1361/VideoToMp3?label=download&sort=semver)](https://github.com/dmpotter1361/VideoToMp3/releases/latest)
+[![Latest release](https://img.shields.io/github/v/release/dmpotter1361/VideoToMp3?label=download&sort=semver&cacheSeconds=300)](https://github.com/dmpotter1361/VideoToMp3/releases/latest)
 
 A small Windows tray app that downloads a video from YouTube (or ~1,000 other
 sites) and turns it into an MP3 — keeping both the audio and the original video.
@@ -37,6 +37,8 @@ code-signed, so Windows SmartScreen may warn — choose **More info → Run anyw
 - **Optional login** — point it at an exported `cookies.txt` to download your own
   private playlists, Watch Later, or Liked videos; a clear indicator shows which
   account is in use. Public videos need no login.
+- **Easy launching** — optional "Start with Windows" toggle and a one-click
+  "Create desktop shortcut", both in the tray menu.
 
 ## Requirements
 
